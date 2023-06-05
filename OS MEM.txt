@@ -1,0 +1,392 @@
+/*******************************************************
+ **  Author: XXXXXXXXXXXXXXX
+ **
+ **
+ **  Original Author: Michael Ocean
+ **          Endicott College
+ **          mocean@endicott.edu
+ **
+ **  What is it?: Template for csc380
+ **               Programming assignment #4
+ **
+ **  Description:
+ **               simulates allocating blocks for requests using
+ **                 various 'fit' algorithms
+ **
+ **
+ **		GET SET UP (RPi ONLY): sudo apt-get install libsdl1.2-dev
+ **
+ **  Your task:
+ **            implement missing functions: bestfit(), worstfit(),
+ **            firstfit(), deleteEntry() and compactMemory()
+ **
+ **  compile with:
+ **               make
+ **             (or)  g++ fitsim_gfx.cpp gfx.c -o fitgfx -lX11 -lm
+ **
+ **  run with:
+ **               ./fitgfx
+ **
+ **  or with:
+ **
+ **               ./fitgfx < sequence_file.txt
+ **
+ ******************************************************/
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+#include <list>
+#include "memory_interface.cpp"
+
+using namespace std;
+
+const char FIRST_FIT = 'F';
+const char WORST_FIT = 'W';
+const char BEST_FIT = 'B';
+
+struct alloc_entry_t{
+	int start;
+	int length;
+	char contents;
+};
+
+// GLOBALS
+char nAllocatorType;
+list<alloc_entry_t> free_list;
+list<alloc_entry_t> used_list;
+
+/**********
+ TEMPLATES
+ **********/
+MemoryInterface mem;
+
+string promptUser();
+void deleteEntry(char ch);
+void showhelp();
+void compactMemory();
+bool store(int, char);
+/****
+ END TEMPLATES
+ ****/
+
+
+/**
+ ** Finds the first free section of memory to fit 'length' many characters.
+ ** --this function should return the location of the beginning of
+ ** a sufficiently large hole.  Specifically, the first on big enough.
+ Returns -1 if there isn't enough free memory.
+ ** TODO: Finish this function!
+**/
+int firstfit(int requestedLength)
+{
+    // NOTE: this file does NOT need to add the record to the used_list,
+    // because store() takes care of that for you!
+    for(list<alloc_entry_t>::iterator it = free_list.begin(); it != free_list.end(); it++)
+    {
+        if(it->length >= requestedLength){
+            // can fit here
+            int loc = it->start;
+            if(it->length > requestedLength){
+                it->length -= requestedLength;
+                it->start += requestedLength;
+            }
+            else{
+                free_list.erase(it);
+            }
+            return loc;
+        }
+    }
+
+
+	// if you get here then I guess we couldn't find a big enough hole
+	return -1;
+}
+
+/**
+ ** TODO: IMPLEMENT THIS!!
+ ** DESCRIPTION: find the `worst' hole for a length of
+ ** size length (as defined by the worst-fit algorithm)
+ ** and return that location.  Return -1 if no location
+ ** exists.
+ **
+ */
+int worstfit(int length)
+{
+	used_list.sort();
+	used_list.reverse();
+	for(list<alloc_entry_t>::iterator it = free_list.begin(); it != free_list.end(); it++)
+    {
+        if(it->length >= length){
+            // can fit here
+            int loc = it->start;
+            if(it->length > length){
+                it->length -= length;
+                it->start += length;
+            }
+            else{
+                free_list.erase(it);
+            }
+            return loc;
+        }
+	return -1;
+	}
+}
+
+
+/**
+ ** TODO: IMPLEMENT THIS!!
+ ** DESCRIPTION: find the `best' hole for a length of
+ ** size length (as defined by the worst-fit algorithm)
+ ** and return that location.  Return -1 if no location
+ ** exists.
+ **
+ */
+int bestfit(int length)
+{
+	used_list.sort();
+	for(list<alloc_entry_t>::iterator it = free_list.begin(); it != free_list.end(); it++)
+    {
+        if(it->length >= length){
+            // can fit here
+            int loc = it->start;
+            if(it->length > length){
+                it->length -= length;
+                it->start += length;
+            }
+            else{
+                free_list.erase(it);
+            }
+            return loc;
+        }
+	return -1;
+	}
+}
+
+/**
+ ** TODO: IMPLEMENT THIS!!
+ ** DESCRIPTION: should compact the holes in the memory (i.e., defrag)
+ **
+ */
+void compactMemory()
+{
+
+}
+
+void deleteEntry(char item){
+    // TODO: anything you need to do in order to keep your
+    // data structures consistent
+	
+	// find it in used_list
+	for(list<alloc_entry_t>::iterator it = used_list.begin(); it != used_list.end(); it++){
+		if(it->contents == item){
+			//alloc_entry_t temp = it;
+			used_list.remove(temp);
+		}
+	}
+	// delete from used_list
+	// add to holes list / coalesce the holes lists
+
+    // this function MUST end by calling this method:
+    mem.deleteContents(item);
+}
+
+//** this is for your debugging purposes and to give examples of navigating these structures **/
+void debugAllocationTable(){
+    //Print Holes and Files for debugging
+    cout << "HOLES" << endl;
+    for(list<alloc_entry_t>::iterator it = free_list.begin(); it != free_list.end(); it++)
+    {
+     cout << "Hole @" << (it)->start << " length: " << (it)->length << endl;
+    }
+
+    cout << "FILES" << endl;
+    for(list<alloc_entry_t>::iterator it = used_list.begin(); it != used_list.end(); it++)
+    {
+     cout << "File '"<< (it)->contents << "' at " << (it)->start << " -length: " << (it)->length << endl;
+    }
+}
+
+
+// DO NOT MODIFY!
+int main (int argc,  char * argv[])
+{
+	int done = 0;
+	string cmd; // our current command
+
+    cout << "Please select the allocation method" << endl
+	<< "  [F]irst-Fit " << endl
+	<< "  [B]est-Fit  " << endl
+	<< "  [W]orst-Fit " << endl << endl;
+
+	cmd = promptUser();
+	nAllocatorType = cmd[0];
+	if((nAllocatorType!='F')&&(nAllocatorType!='B')&&(nAllocatorType!='W'))
+		exit(-1);
+
+	showhelp();
+
+    // add the initial hole information to memory
+    alloc_entry_t hole;
+    hole.start = 0;
+    hole.length = mem.getSize();
+    hole.contents = '_';
+    free_list.push_back(hole);
+
+	while(!done)
+	{
+		// get input from the user
+		cmd = promptUser();
+
+		// if the user enters quit, then quit
+		if(cmd.compare("quit")==0)
+		{
+			exit(0);
+		}
+		else if(cmd.compare("help")==0)
+		{
+			showhelp();
+		}
+		else if(cmd.compare("print")==0)
+		{
+            debugAllocationTable();
+			mem.showUsage();
+		}
+		else if(cmd.compare("compact")==0)
+		{
+			compactMemory();
+		}
+		else if(cmd.compare("delete")==0)
+		{
+			cout << "content? (single character, please)\n";
+			char content;
+			cin >> content;
+            deleteEntry(content);
+			mem.showUsage();
+		}
+		else if(cmd.compare("add")==0)
+		{
+			cout << "content? (single character, please)\n";
+			char content;
+			cin >> content;
+
+			cout << "length?\n";
+			int length;
+			cin >> length;
+
+			cout << "About to store '"
+				 << length << "' many instances of '"
+				 << content << "'" << endl;
+
+			if(store(length,content))
+				mem.showUsage();
+		}
+		else
+		{
+			cout << "Ignoring unknown command.  Type 'help' for help \n";
+		}
+
+	}
+}
+
+/*****************************************
+ SAFE TO IGNORE EVERYTHING BELOW THIS LINE
+******************************************/
+/**
+ * DESCRIPTION: prompts user and gets a string
+ * SAFE TO IGNORE.
+ **/
+string promptUser()
+{
+	string tmp;
+	string line;
+	// show a prompt
+	cout << "$ ";
+
+	// get input from the user
+	cin >> line;
+
+	return line;
+}
+
+
+
+/** shows help.
+ * IGNORE
+ **/
+void showhelp()
+{
+	printf("quit\t\tquits the simulator\n");
+	printf("print\t\tshows the current memory map\n");
+	printf("delete\t\tdelete data from memory\n");
+	printf("add\t\tadd new data to the memory\n");
+	printf("compact\t\tcompacts the memory\n");
+	printf("help\t\tshows this info\n");
+}
+
+/**
+ * This function calls your fit function, and stores data into
+ * the memory. DO NOT MODIFY!
+ */
+bool store(int len, char content)
+{
+    // find a fit of at least size len
+    int loc = -1;
+
+    if(nAllocatorType == FIRST_FIT)
+       loc = firstfit(len);
+    else if(nAllocatorType == WORST_FIT)
+        loc = worstfit(len);
+    else
+        loc = bestfit(len);
+
+    if(loc==-1)
+    {
+        cout << "Function said there was insufficient space to store data." << endl;
+        return false;
+    }
+    cout << "Function recommended storing data at " << loc << "." << endl;
+
+    // add the record to the allocation list
+    alloc_entry_t new_file;
+    new_file.start = loc;
+    new_file.length = len;
+    new_file.contents = content;
+    used_list.push_back(new_file);
+
+    // Actually write the contents into memory
+    return mem.store(content, loc, len);
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+	list<alloc_entry_t>::iterator largest = free_list.begin();
+	bool found = false;
+	int loc = -1;
+	for(list<alloc_entry_t>::iterator it = free_list.begin(); it != free_list.end(); it++)
+    {
+		if(it->length >= length)
+		{
+			loc = largest->start;
+			if(largest == free_list.begin()){
+				largest = it;
+			}
+			else if(largest->length < it->length){
+				largest = it;
+				found = true;
+				largest->length -= length;
+        		largest->start += length;
+				return loc;
+				break;
+			}
+			else{
+                free_list.erase(it);
+            }
+		}
+	}
+	if(!found){
+		return -1;
+	}
+

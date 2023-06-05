@@ -1,0 +1,109 @@
+void pickNextJob_RR(int &current_job)
+{
+	if(scheduler_num==RRq1){
+		time_quantum = 1;
+	}
+	else if(scheduler_num==RRq4){
+		time_quantum = 4;
+	}
+
+	for(int i=0; i < num_jobs ; i++)
+	{
+		if( jobs[i].arrival <= current_time &&
+			jobs[i].service_remaining > 0)
+		{
+			if(rr_length < 1)
+			{
+				rr_length++;
+				rr_queue[rr_length-1] = i;
+				current_job = i;
+			}
+			else{
+				bool found = false;
+				for(int j = 0; j < rr_length; j++)
+				{
+					if(rr_queue[j] == i){
+						found = true;
+						break; 
+					}
+				}
+				if(!found)
+				{
+					rr_length++;
+					for(int j = 0; j< rr_length-1; j++)
+					{
+						rr_queue[rr_length-j] =rr_queue[rr_length-j-1]; 
+					}
+					rr_queue[0] = i;
+				}
+				//the most recent job to have run will be put into the back of the line
+				//it was originally in the front
+				current_job = rr_queue[0];
+				
+			}
+		}
+		else if(jobs[i].service_remaining < 1)
+		{
+			//if the job is complete, remove it from the queue
+			//shift everything over by one as well then put a 0 in the last spot
+			for(int j = i; j<rr_length-1; j++){
+				rr_queue[j] = rr_queue[j+1];
+			}
+			rr_queue[rr_length] = 0;
+		}
+	}
+	// use RR w/ time_quantum (global) and set current_job accordingly
+	// TODO: write this...
+    // HINT: I give you an empty integer array rr_queue and rr_length
+	// that you can use as a fake queue, put job indices in it
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+
+	if(scheduler_num==RRq1){
+		time_quantum = 1;
+	}
+	else if(scheduler_num==RRq4){
+		time_quantum = 4;
+	}
+		//if the job is complete, remove it from the queue
+		//shift everything over by one as well then put a 0 in the last spot
+	for(int i=0; i < num_jobs ; i++)
+	{
+		//if the job arrives and still has time
+		if( jobs[i].arrival <= current_time &&
+			jobs[i].service_remaining > 0)
+		{
+			//there are no values in the array
+			if(rr_length < 1)
+			{
+				//rr_length=0
+				rr_length++;
+				rr_queue[rr_length-1] = i;
+			}
+			else
+			{
+			//the length of rr_queue is greater than 0
+			bool found = false;
+				for(int j = 0; j < rr_length; j++)
+				{
+					if(rr_queue[j] == i){
+						found = true;
+						break; 
+					}
+				}
+				if(!found)
+				{
+					rr_length++;
+					for(int j = 0; j< rr_length-1; j++)
+					{
+						rr_queue[rr_length-j] =rr_queue[rr_length-j-1]; 
+					}
+					rr_queue[0] = i;
+				}
+			}
+			current_job = rr_queue[0];
+		}
+	}
